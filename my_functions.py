@@ -83,7 +83,8 @@ class Detected_object(Features):
 
         print(Features.info)
 
-    def info_analysis(self, info, lower, upper):
+    @classmethod
+    def info_analysis(cls, info, lower, upper):
         name = input("Enter the name of the object: ")
 
         approx = []
@@ -128,8 +129,61 @@ class Detected_object(Features):
             result[3], result[0], f"{upper[0]}", f"{upper[1]}", f"{upper[2]}",
             f"{lower[0]}", f"{lower[1]}", f"{lower[2]}", result[5], current_time))
 
+    @classmethod
+    def recognize_object(cls, only_object, thresh1, thresh2, kernel, frame, object, depth):
+        gray = cv.cvtColor(only_object, cv.COLOR_BGR2GRAY)
+        canny = cv.Canny(gray, thresh1, thresh2)
+        dil = cv.dilate(canny, kernel, iterations=1)
+        contours, hierarchy = cv.findContours(dil, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
+        counter = 0
+
+        for contour in contours:
+            area = cv.contourArea(contour)
+            if area > 5000:
+                p = cv.arcLength(contour, True)
+                approx = cv.approxPolyDP(contour, 0.02 * p, True)
+                x, y, w, h = cv.boundingRect(approx)
+
+                try:
+                    real_width = round(w / 25)
+                    real_height = round(h / 25)
+                    K = round(real_width / real_height, 1)
+                    K2 = round(real_height / real_width, 1)
+                except ZeroDivisionError:
+                    print("divided by 0")
+
+                if (object[4] - 0.2 <= K <= object[4] + 0.2 or object[4] - 0.2 <= K2 <= object[4] + 0.2) and len(approx) == object[5]:
+                    cv.drawContours(only_object, contour, -1, (200, 200, 0), 3)
+                    cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
+                    counter += 1
+                    frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                    frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
+                    if (object[4] - 0.2 <= K <= object[4] + 0.2) and len(approx) == object[5]:
+                        distance = (object[2] * object[12]) / w
+                        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
+                        frame = cv.putText(frame, f"{object[2]} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"{object[3]} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"{object[0]}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
+                    if (object[4] - 0.2 <= K2 <= object[4] + 0.2) and len(approx) == object[5]:
+                        distance = (object[3] * object[12]) / w
+                        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
+                        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
+                        frame = cv.putText(frame, f"{object[3]} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"{object[2]} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"{object[0]}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                        frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
+        if counter != 0:
+            cv.putText(frame, f"Objects: {counter}", (10, 65), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
     def check_color(self, hue):
-        color = "Undeafined"
+        #color = "Undefined"
         if hue <= 6:
             color = "Red"
         elif hue <= 15:
