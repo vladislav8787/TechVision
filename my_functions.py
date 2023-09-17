@@ -6,16 +6,17 @@ from datetime import datetime
 class Features():
 
     def __init__(self):
-
+        #ядро, кол-во объектов, расстояние для определения параметров, счетчик,
+        #объект захвата видеопотока с камеры 1
         self.kernel = np.ones((5, 5), np.uint8)
         self.amount = int(input("Enter the number of objects: "))
         self.depth = 40
         self.count_to_exit = 0
         self.cap = cv.VideoCapture(1, cv.CAP_DSHOW)
-
+        #окна
         cv.namedWindow("frame")
         cv.namedWindow("track", cv.WINDOW_NORMAL)
-
+        #ползунки
         cv.createTrackbar("H", "track", 0, 179, self.nothing)
         cv.createTrackbar("S", "track", 0, 255, self.nothing)
         cv.createTrackbar("V", "track", 0, 255, self.nothing)
@@ -25,6 +26,7 @@ class Features():
         cv.createTrackbar("T1", "track", 0, 255, self.nothing)
         cv.createTrackbar("T2", "track", 0, 255, self.nothing)
 
+    #обработка замкнутых контуров
     def get_contours(self, only_object, thresh1, thresh2, kernel, frame, depth):
         gray = cv.cvtColor(only_object, cv.COLOR_BGR2GRAY)
         canny = cv.Canny(gray, thresh1, thresh2)
@@ -40,18 +42,20 @@ class Features():
                 counter += 1
                 return Detected_object(only_object, frame, depth, counter, hsv, contour)
 
+    #пустой метод для заполнения аргуметна в createTrackbar
     def nothing(self, x):
         pass
 
 
 class Detected_object():
     def __init__(self, only_object, frame, depth, counter, hsv, contour):
-
+        #данные об объекте
         self.info = []
         self.counter = counter + 1
         self.p = cv.arcLength(contour, True)
         self.approx = cv.approxPolyDP(contour, 0.02 * self.p, True)
         self.x, self.y, self.w, self.h = cv.boundingRect(self.approx)
+        #отображение контуров и доп информации на кадрах
         cv.drawContours(only_object, contour, -1, (200, 200, 0), 3)
         cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
         frame = cv.rectangle(frame, (self.x, self.y), (self.x + self.w, self.y + self.h), (0, 255, 0), 2)
@@ -60,8 +64,9 @@ class Detected_object():
         frame = cv.arrowedLine(frame, (self.x + self.w, self.y + self.h + 25), (self.x, self.y + self.h + 25), (0, 255, 0), 2)
         frame = cv.arrowedLine(frame, (self.x - 25, self.y), (self.x - 25, self.y + self.h), (0, 255, 0), 2)
         frame = cv.arrowedLine(frame, (self.x - 25, self.y + self.h), (self.x - 25, self.y), (0, 255, 0), 2)
-        frame = cv.putText(frame, f"{round(self.w / 25)} cm", ((self.x + self.w // 3, self.y + self.h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-        frame = cv.putText(frame, f"{round(self.h / 25)} cm", ((self.x - 120, self.y + self.h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"{round(self.w / 25)} cm", (self.x + self.w // 3, self.y + self.h + 50), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"{round(self.h / 25)} cm", (self.x - 120, self.y + self.h // 2), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        #параметры объекта
         try:
             self.real_width = round(self.w / 25)
             self.real_height = round(self.h / 25)
@@ -83,7 +88,7 @@ class Detected_object():
         if self.counter != 0:
             cv.putText(frame, f"Objects: {counter}", (10, 65), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
-
+    #поиск наиболее встречающихся значений
     def info_analysis(self, lower, upper):
         name = input("Enter the name of the object: ")
 
@@ -111,7 +116,7 @@ class Detected_object():
             result.append(parameter[index])
 
         current_time = str(datetime.now().hour) + ":" + str(datetime.now().minute) + ":" + str(datetime.now().second)
-
+        #отправить в бд
         with sql.connect('objects.db') as con:
             cur = con.cursor()
             cur.execute("""INSERT INTO objects(name, color, width, height, K,
@@ -150,7 +155,7 @@ class Detected_object():
                     counter += 1
                     frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
-
+                    #сравнение значений коэффициентов для придачи инвариантности
                     if (object[4] - 0.2 <= K <= object[4] + 0.2) and len(approx) == object[5]:
                         Detected_object.display(frame, object[2], object[3], x, y, w, h, object[12], object[0])
 
@@ -160,6 +165,7 @@ class Detected_object():
         if counter != 0:
             cv.putText(frame, f"Objects: {counter}", (10, 65), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
+    #отображение данных в кадре
     @classmethod
     def display(cls, frame, hight, width, x, y, w, h, f, amount):
         distance = (hight * f) / w
@@ -172,6 +178,7 @@ class Detected_object():
         frame = cv.putText(frame, f"{amount}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
         frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
+   #определение цвета по значению hue
     def check_color(self, hue):
 
         if hue <= 6:

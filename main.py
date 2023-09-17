@@ -76,16 +76,8 @@ with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
             only_object = cv.bitwise_and(frame, frame, mask=mask)
             opening = cv.morphologyEx(mask, cv.MORPH_OPEN, features.kernel)
             closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, features.kernel)
-            frame = cv.putText(frame, f"Searching \"{object[0]}\"", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0,(255, 255, 255), 2)
-
-            contours, hierarchy = cv.findContours(closing, cv.RETR_TREE, cv.CHAIN_APPROX_NONE)
-            contours = sorted(contours, key=cv.contourArea, reverse=True)
-
-            height, width, channels = frame.shape
-            center_x = int(width / 2)
-            center_y = int(height / 2)
-            frame_center = hsv[center_y, center_x]
-
+            frame = cv.putText(frame, f"Searching \"{object[0]}\"", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            #распознавание объекта
             mfs.Detected_object.recognize_object(only_object, thresh1, thresh2, features.kernel, frame, object)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
