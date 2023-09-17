@@ -4,28 +4,28 @@ import sqlite3 as sql
 from datetime import datetime
 
 class Features():
-    kernel = np.ones((5, 5), np.uint8)
-    amount = int(input("Enter the number of objects: "))
-    depth = 40
-    count_to_exit = 0
-    info = []
-    cap = cv.VideoCapture(1, cv.CAP_DSHOW)
+
     def __init__(self):
+
+        self.kernel = np.ones((5, 5), np.uint8)
+        self.amount = int(input("Enter the number of objects: "))
+        self.depth = 40
+        self.count_to_exit = 0
+        self.cap = cv.VideoCapture(1, cv.CAP_DSHOW)
 
         cv.namedWindow("frame")
         cv.namedWindow("track", cv.WINDOW_NORMAL)
 
-        cv.createTrackbar("H", "track", 0, 179, Features.nothing)
-        cv.createTrackbar("S", "track", 0, 255, Features.nothing)
-        cv.createTrackbar("V", "track", 0, 255, Features.nothing)
-        cv.createTrackbar("HL", "track", 0, 179, Features.nothing)
-        cv.createTrackbar("SL", "track", 0, 255, Features.nothing)
-        cv.createTrackbar("VL", "track", 0, 255, Features.nothing)
-        cv.createTrackbar("T1", "track", 0, 255, Features.nothing)
-        cv.createTrackbar("T2", "track", 0, 255, Features.nothing)
+        cv.createTrackbar("H", "track", 0, 179, self.nothing)
+        cv.createTrackbar("S", "track", 0, 255, self.nothing)
+        cv.createTrackbar("V", "track", 0, 255, self.nothing)
+        cv.createTrackbar("HL", "track", 0, 179, self.nothing)
+        cv.createTrackbar("SL", "track", 0, 255, self.nothing)
+        cv.createTrackbar("VL", "track", 0, 255, self.nothing)
+        cv.createTrackbar("T1", "track", 0, 255, self.nothing)
+        cv.createTrackbar("T2", "track", 0, 255, self.nothing)
 
-    @classmethod
-    def get_contours(cls, only_object, thresh1, thresh2, kernel, frame, depth):
+    def get_contours(self, only_object, thresh1, thresh2, kernel, frame, depth):
         gray = cv.cvtColor(only_object, cv.COLOR_BGR2GRAY)
         canny = cv.Canny(gray, thresh1, thresh2)
         dil = cv.dilate(canny, kernel, iterations=1)
@@ -36,74 +36,66 @@ class Features():
         counter = 0
         for contour in contours:
             area = cv.contourArea(contour)
-            if area > 5000:
-                detected_object = Detected_object(only_object, frame, depth, counter, hsv, contour)
+            if area > 2500:
+                counter += 1
+                return Detected_object(only_object, frame, depth, counter, hsv, contour)
 
-    @classmethod
-    def nothing(cls, x):
+    def nothing(self, x):
         pass
 
 
-class Detected_object(Features):
+class Detected_object():
     def __init__(self, only_object, frame, depth, counter, hsv, contour):
+
+        self.info = []
+        self.counter = counter + 1
+        self.p = cv.arcLength(contour, True)
+        self.approx = cv.approxPolyDP(contour, 0.02 * self.p, True)
+        self.x, self.y, self.w, self.h = cv.boundingRect(self.approx)
         cv.drawContours(only_object, contour, -1, (200, 200, 0), 3)
         cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
-        counter += 1
-        p = cv.arcLength(contour, True)
-        approx = cv.approxPolyDP(contour, 0.02 * p, True)
-        x, y, w, h = cv.boundingRect(approx)
-        frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
-        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
-        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
-        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
-        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
-        frame = cv.putText(frame, f"{round(w / 25)} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-        frame = cv.putText(frame, f"{round(h / 25)} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.rectangle(frame, (self.x, self.y), (self.x + self.w, self.y + self.h), (0, 255, 0), 2)
+        frame = cv.circle(frame, (self.x + (self.w // 2), self.y + (self.h // 2)), 5, (0, 255, 0), -1)
+        frame = cv.arrowedLine(frame, (self.x, self.y + self.h + 25), (self.x + self.w, self.y + self.h + 25), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (self.x + self.w, self.y + self.h + 25), (self.x, self.y + self.h + 25), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (self.x - 25, self.y), (self.x - 25, self.y + self.h), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (self.x - 25, self.y + self.h), (self.x - 25, self.y), (0, 255, 0), 2)
+        frame = cv.putText(frame, f"{round(self.w / 25)} cm", ((self.x + self.w // 3, self.y + self.h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"{round(self.h / 25)} cm", ((self.x - 120, self.y + self.h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
         try:
-            real_width = round(w / 25)
-            real_height = round(h / 25)
-            f = (w * depth) // real_width
-            K = round(real_width / real_height, 1)
-            cx = int(x + w // 2)
-            cy = int(y + h // w)
+            self.real_width = round(self.w / 25)
+            self.real_height = round(self.h / 25)
+            self.f = (self.w * depth) // self.real_width
+            self.K = round(self.real_width / self.real_height, 1)
+            self.cx = int(self.x + self.w // 2)
+            self.cy = int(self.y + self.h // self.w)
         except ZeroDivisionError:
             print("divided by 0")
-        color_point = hsv[cy, cx]
-        color = self.check_color(color_point[0])
-        cv.drawContours(frame, approx, -1, (0, 0, 255), 3)
-        cv.putText(frame, f"x:{x + (w // 2)}, y: {y + (h // 2)}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-        cv.putText(frame, f"Points: {len(approx)} | Color: {color}", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-        Features.info.append((len(approx), round(real_width, 1), round(real_height, 1), K, color, f))
-        if len(Features.info) > 100:
-            del Features.info[0]
+        self.color_point = hsv[self.cy, self.cx]
+        self.color = self.check_color(self.color_point[0])
+        cv.drawContours(frame, self.approx, -1, (0, 0, 255), 3)
+        cv.putText(frame, f"x:{self.x + (self.w // 2)}, y: {self.y + (self.h // 2)}", (self.x, self.y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        cv.putText(frame, f"Points: {len(self.approx)} | Color: {self.color}", (self.x, self.y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        self.info.append((len(self.approx), round(self.real_width, 1), round(self.real_height, 1), self.K, self.color, self.f))
+        if len(self.info) > 100:
+            del self.info[0]
 
-        if counter != 0:
+        if self.counter != 0:
             cv.putText(frame, f"Objects: {counter}", (10, 65), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
-        print(Features.info)
 
-    @classmethod
-    def info_analysis(cls, info, lower, upper):
+    def info_analysis(self, lower, upper):
         name = input("Enter the name of the object: ")
 
-        approx = []
-        real_width = []
-        real_height = []
-        K = []
-        color = []
-        f = []
-        result = []
-
-        for i in range(len(info)):
-            approx.append(info[i][0])
-            real_width.append(info[i][1])
-            real_height.append(info[i][2])
-            K.append(info[i][3])
-            color.append(info[i][4])
-            f.append(info[i][5])
+        approx = [self.info[i][0] for i in range(len(self.info))]
+        real_width = [self.info[i][1] for i in range(len(self.info))]
+        real_height = [self.info[i][2] for i in range(len(self.info))]
+        K = [self.info[i][3] for i in range(len(self.info))]
+        color = [self.info[i][4] for i in range(len(self.info))]
+        f = [self.info[i][5] for i in range(len(self.info))]
 
         main_list = [approx, real_width, real_height, K, color, f]
+        result = []
         for parameter in main_list:
             max = index = 0
             for i in range(len(parameter)):
@@ -130,7 +122,7 @@ class Detected_object(Features):
             f"{lower[0]}", f"{lower[1]}", f"{lower[2]}", result[5], current_time))
 
     @classmethod
-    def recognize_object(cls, only_object, thresh1, thresh2, kernel, frame, object, depth):
+    def recognize_object(cls, only_object, thresh1, thresh2, kernel, frame, object):
         gray = cv.cvtColor(only_object, cv.COLOR_BGR2GRAY)
         canny = cv.Canny(gray, thresh1, thresh2)
         dil = cv.dilate(canny, kernel, iterations=1)
@@ -139,7 +131,7 @@ class Detected_object(Features):
 
         for contour in contours:
             area = cv.contourArea(contour)
-            if area > 5000:
+            if area > 2500:
                 p = cv.arcLength(contour, True)
                 approx = cv.approxPolyDP(contour, 0.02 * p, True)
                 x, y, w, h = cv.boundingRect(approx)
@@ -158,32 +150,30 @@ class Detected_object(Features):
                     counter += 1
                     frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
-                    if (object[4] - 0.2 <= K <= object[4] + 0.2) and len(approx) == object[5]:
-                        distance = (object[2] * object[12]) / w
-                        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
-                        frame = cv.putText(frame, f"{object[2]} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"{object[3]} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"{object[0]}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
 
-                    if (object[4] - 0.2 <= K2 <= object[4] + 0.2) and len(approx) == object[5]:
-                        distance = (object[3] * object[12]) / w
-                        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
-                        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
-                        frame = cv.putText(frame, f"{object[3]} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"{object[2]} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"{object[0]}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-                        frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+                    if (object[4] - 0.2 <= K <= object[4] + 0.2) and len(approx) == object[5]:
+                        Detected_object.display(frame, object[2], object[3], x, y, w, h, object[12], object[0])
+
+                    elif (object[4] - 0.2 <= K2 <= object[4] + 0.2) and len(approx) == object[5]:
+                        Detected_object.display(frame, object[3], object[2], x, y, w, h, object[12], object[0])
 
         if counter != 0:
             cv.putText(frame, f"Objects: {counter}", (10, 65), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
+    @classmethod
+    def display(cls, frame, hight, width, x, y, w, h, f, amount):
+        distance = (hight * f) / w
+        frame = cv.arrowedLine(frame, (x, y + h + 25), (x + w, y + h + 25), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (x + w, y + h + 25), (x, y + h + 25), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (x - 25, y), (x - 25, y + h), (0, 255, 0), 2)
+        frame = cv.arrowedLine(frame, (x - 25, y + h), (x - 25, y), (0, 255, 0), 2)
+        frame = cv.putText(frame, f"{hight} cm", ((x + w // 3, y + h + 50)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"{width} cm", ((x - 120, y + h // 2)), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"{amount}", (x, y - 40), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+        frame = cv.putText(frame, f"Distance {round(distance)} cm", (x, y - 5), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+
     def check_color(self, hue):
-        #color = "Undefined"
+
         if hue <= 6:
             color = "Red"
         elif hue <= 15:
@@ -197,7 +187,7 @@ class Detected_object(Features):
         elif hue <= 167:
             color = "Purple"
         else:
-            color = "Red"
+            color = "Undefined"
 
         return color
 
