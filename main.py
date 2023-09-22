@@ -25,17 +25,17 @@ while True:
     upper = np.array([h, s, v])
     #получение маски, изолированного объекта и проведение морфологических операций
     mask = cv.inRange(hsv, lower, upper)
-    only_object = cv.bitwise_and(frame, frame, mask=mask)
+    onlyObject = cv.bitwise_and(frame, frame, mask=mask)
     opening = cv.morphologyEx(mask, cv.MORPH_OPEN, features.kernel)
     closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, features.kernel)
     #обнаружение объекта, при нахождении в кадре замкнутых контуров
-    detected_object = features.get_contours(only_object, thresh1, thresh2, features.kernel, frame, features.depth)
+    detectedObject = features.getContours(onlyObject, thresh1, thresh2, features.kernel, frame, features.depth)
     #отслеживание нажатия клавиши
     if cv.waitKey(1) & 0xFF == ord('q'):
-        if features.count_to_exit >= features.amount:
+        if features.countToExit >= features.amount:
             break
-        detected_object.info_analysis(lower, upper)
-        features.count_to_exit += 1
+        detectedObject.infoAnalysis(lower, upper)
+        features.countToExit += 1
     #отображение окон
     cv.imshow("mask", closing)
     cv.imshow("frame", frame)
@@ -47,9 +47,11 @@ cv.destroyWindow("mask")
 with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
     cur = con.cursor()
     cur.execute("""SELECT * FROM objects""")
-    all_objects = cur.fetchall()
+    allObjects = cur.fetchall()
     #задание параметров hsv для объекта
-    for object in all_objects:
+    for object in allObjects:
+        detectedObject = mfs.DetectedObject()
+
         cv.setTrackbarPos("H", "track", object[6])
         cv.setTrackbarPos("HL", "track", object[9])
         cv.setTrackbarPos("S", "track", object[7])
@@ -73,12 +75,13 @@ with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
             upper = np.array([h, s, v])
 
             mask = cv.inRange(hsv, lower, upper)
-            only_object = cv.bitwise_and(frame, frame, mask=mask)
+            onlyObject = cv.bitwise_and(frame, frame, mask=mask)
             opening = cv.morphologyEx(mask, cv.MORPH_OPEN, features.kernel)
             closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, features.kernel)
-            frame = cv.putText(frame, f"Searching \"{object[0]}\"", (10, 30), cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
+            frame = cv.putText(frame, f"Searching \"{object[0]}\"", (10, 30),
+                               cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
             #распознавание объекта
-            mfs.Detected_object.recognize_object(only_object, thresh1, thresh2, features.kernel, frame, object)
+            mfs.DetectedObject.recognizeObject(onlyObject, thresh1, thresh2, features.kernel, frame, object, features)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
