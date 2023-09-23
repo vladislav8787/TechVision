@@ -50,8 +50,6 @@ with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
     allObjects = cur.fetchall()
     #задание параметров hsv для объекта
     for object in allObjects:
-        detectedObject = mfs.DetectedObject()
-
         cv.setTrackbarPos("H", "track", object[6])
         cv.setTrackbarPos("HL", "track", object[9])
         cv.setTrackbarPos("S", "track", object[7])

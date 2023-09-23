@@ -4,7 +4,6 @@ import sqlite3 as sql
 from datetime import datetime
 
 class Features():
-
     def __init__(self):
         #ядро, кол-во объектов, расстояние для определения параметров, счетчик,
         #минимальная площадь контура, объект захвата видеопотока с камеры 1
@@ -13,6 +12,7 @@ class Features():
         self.depth = 40
         self.countToExit = 0
         self.minAreaContour = 2500 #значение в пикселях
+        self.detectingOffset = 0.3 #погрешность для коэффициентов
         self.cap = cv.VideoCapture(1, cv.CAP_DSHOW)
         #окна
         cv.namedWindow("frame")
@@ -48,7 +48,6 @@ class Features():
     def nothing(self, x):
         pass
 
-
 class DetectedObject():
     def __init__(self, onlyObject, frame, depth, counter, hsv, contour):
         #данные об объекте
@@ -57,20 +56,7 @@ class DetectedObject():
         self.p = cv.arcLength(contour, True)
         self.approx = cv.approxPolyDP(contour, 0.02 * self.p, True)
         self.x, self.y, self.w, self.h = cv.boundingRect(self.approx)
-        #индексы
-        self.nameIndex = 0
-        self.colorIndex = 1
-        self.heightIndex = 2
-        self.widthIndex = 3
-        self.kIndex = 4
-        self.approxIndex = 5
-        self.hIndex = 6
-        self.sIndex = 7
-        self.vIndex = 8
-        self.hlIndex = 9
-        self.slIndex = 10
-        self.vlIndex = 11
-        self.fIndex = 12
+
         #отображение контуров и доп информации на кадрах
         cv.drawContours(onlyObject, contour, -1, (200, 200, 0), 3)
         cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
@@ -177,8 +163,8 @@ class DetectedObject():
                 except ZeroDivisionError:
                     print("divided by 0")
 
-                if (object[4] - 0.2 <= K <= object[4] + 0.2
-                    or object[4] - 0.2 <= K2 <= object[4] + 0.2) \
+                if (object[4] - features.detectingOffset <= K <= object[4] + features.detectingOffset
+                    or object[4] - features.detectingOffset <= K2 <= object[4] + features.detectingOffset) \
                         and len(approx) == object[5]:
                     cv.drawContours(onlyObject, contour, -1, (200, 200, 0), 3)
                     cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
@@ -186,11 +172,11 @@ class DetectedObject():
                     frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
                     #сравнение значений коэффициентов для придачи инвариантности
-                    if (object[4] - 0.2 <= K <= object[4] + 0.2) \
+                    if (object[4] - features.detectingOffset <= K <= object[4] + features.detectingOffset) \
                             and len(approx) == object[5]:
                         DetectedObject.display(frame, object[2], object[3], x, y, w, h, object[12], object[0])
 
-                    elif (object[4] - 0.2 <= K2 <= object[4] + 0.2) \
+                    elif (object[4] - features.detectingOffset <= K2 <= object[4] + features.detectingOffset) \
                             and len(approx) == object[5]:
                         DetectedObject.display(frame, object[3], object[2], x, y, w, h, object[12], object[0])
 
