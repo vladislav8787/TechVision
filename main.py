@@ -1,7 +1,6 @@
 import cv2 as cv
 import numpy as np
 import sqlite3 as sql
-
 import detected_object
 import features
 
