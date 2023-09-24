@@ -1,54 +1,9 @@
 import cv2 as cv
-import numpy as np
 import sqlite3 as sql
 from datetime import datetime
 
-class Features():
-    def __init__(self):
-        #ядро, кол-во объектов, расстояние для определения параметров, счетчик,
-        #минимальная площадь контура, объект захвата видеопотока с камеры 1
-        self.kernel = np.ones((5, 5), np.uint8)
-        self.amount = int(input("Enter the number of objects: "))
-        self.depth = 40
-        self.countToExit = 0
-        self.minAreaContour = 2500 #значение в пикселях
-        self.detectingOffset = 0.3 #погрешность для коэффициентов
-        self.cap = cv.VideoCapture(1, cv.CAP_DSHOW)
-        #окна
-        cv.namedWindow("frame")
-        cv.namedWindow("track", cv.WINDOW_NORMAL)
-        #ползунки
-        cv.createTrackbar("H", "track", 0, 179, self.nothing)
-        cv.createTrackbar("S", "track", 0, 255, self.nothing)
-        cv.createTrackbar("V", "track", 0, 255, self.nothing)
-        cv.createTrackbar("HL", "track", 0, 179, self.nothing)
-        cv.createTrackbar("SL", "track", 0, 255, self.nothing)
-        cv.createTrackbar("VL", "track", 0, 255, self.nothing)
-        cv.createTrackbar("T1", "track", 0, 255, self.nothing)
-        cv.createTrackbar("T2", "track", 0, 255, self.nothing)
-
-    #обработка замкнутых контуров
-    def getContours(self, onlyObject, thresh1, thresh2, kernel, frame, depth):
-        gray = cv.cvtColor(onlyObject, cv.COLOR_BGR2GRAY)
-        canny = cv.Canny(gray, thresh1, thresh2)
-        dil = cv.dilate(canny, kernel, iterations=1)
-        frame = cv.putText(frame, f"Distance: {depth} cm", (10, 30),
-                           cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
-        hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-
-        contours, hierarchy = cv.findContours(dil, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_NONE)
-        counter = 0
-        for contour in contours:
-            area = cv.contourArea(contour)
-            if area > self.minAreaContour:
-                counter += 1
-                return DetectedObject(onlyObject, frame, depth, counter, hsv, contour)
-
-    #пустой метод для заполнения аргуметна в createTrackbar
-    def nothing(self, x):
-        pass
-
 class DetectedObject():
+
     def __init__(self, onlyObject, frame, depth, counter, hsv, contour):
         #данные об объекте
         self.info = []
@@ -85,7 +40,8 @@ class DetectedObject():
             self.cx = int(self.x + self.w // 2)
             self.cy = int(self.y + self.h // self.w)
         except ZeroDivisionError:
-            print("divided by 0")
+            self.f = 0
+            self.K = 0
         self.colorPoint = hsv[self.cy, self.cx]
         self.color = self.checkColor(self.colorPoint[0])
         cv.drawContours(frame, self.approx, -1, (0, 0, 255), 3)
@@ -141,7 +97,7 @@ class DetectedObject():
             f"{lower[0]}", f"{lower[1]}", f"{lower[2]}", result[5], currentTime))
 
     @classmethod
-    def recognizeObject(cls, onlyObject, thresh1, thresh2, kernel, frame, object, features):
+    def recognizeObject(cls, onlyObject, thresh1, thresh2, kernel, frame, object, features, index):
         gray = cv.cvtColor(onlyObject, cv.COLOR_BGR2GRAY)
         canny = cv.Canny(gray, thresh1, thresh2)
         dil = cv.dilate(canny, kernel, iterations=1)
@@ -161,24 +117,26 @@ class DetectedObject():
                     K = round(realWidth / realHeight, 1)
                     K2 = round(realHeight / realWidth, 1)
                 except ZeroDivisionError:
-                    print("divided by 0")
+                    break
 
-                if (object[4] - features.detectingOffset <= K <= object[4] + features.detectingOffset
-                    or object[4] - features.detectingOffset <= K2 <= object[4] + features.detectingOffset) \
-                        and len(approx) == object[5]:
+                if (object[index.K] - features.detectingOffset <= K <= object[index.K] + features.detectingOffset
+                    or object[index.K] - features.detectingOffset <= K2 <= object[index.K] + features.detectingOffset) \
+                        and len(approx) == object[index.APPROX]:
                     cv.drawContours(onlyObject, contour, -1, (200, 200, 0), 3)
                     cv.drawContours(frame, contour, -1, (200, 200, 0), 3)
                     counter += 1
                     frame = cv.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
                     frame = cv.circle(frame, (x + (w // 2), y + (h // 2)), 5, (0, 255, 0), -1)
                     #сравнение значений коэффициентов для придачи инвариантности
-                    if (object[4] - features.detectingOffset <= K <= object[4] + features.detectingOffset) \
-                            and len(approx) == object[5]:
-                        DetectedObject.display(frame, object[2], object[3], x, y, w, h, object[12], object[0])
+                    if (object[index.K] - features.detectingOffset <= K <= object[index.K] + features.detectingOffset) \
+                            and len(approx) == object[index.APPROX]:
+                        DetectedObject.display(frame, object[index.HEIGHT], object[index.WIDTH],
+                            x, y, w, h, object[index.F], object[index.NAME])
 
-                    elif (object[4] - features.detectingOffset <= K2 <= object[4] + features.detectingOffset) \
-                            and len(approx) == object[5]:
-                        DetectedObject.display(frame, object[3], object[2], x, y, w, h, object[12], object[0])
+                    elif (object[index.K] - features.detectingOffset <= K2 <= object[index.K] + features.detectingOffset) \
+                            and len(approx) == object[index.APPROX]:
+                        DetectedObject.display(frame, object[index.WIDTH], object[index.HEIGHT],
+                            x, y, w, h, object[index.F], object[index.NAME])
 
         if counter != 0:
             cv.putText(frame, f"Objects: {counter}", (10, 65),
@@ -220,4 +178,21 @@ class DetectedObject():
             color = "Undefined"
 
         return color
+
+class Indexes():
+    # индексы для доступа к значениям из бд
+    NAME = 0
+    COLOR = 1
+    HEIGHT = 2
+    WIDTH = 3
+    K = 4
+    APPROX = 5
+    H = 6
+    S = 7
+    V = 8
+    HL = 9
+    SL = 10
+    VL = 11
+    F = 12
+
 

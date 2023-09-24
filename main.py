@@ -1,13 +1,15 @@
 import cv2 as cv
 import numpy as np
-import my_functions as mfs
 import sqlite3 as sql
 
-features = mfs.Features() #инициализация характеристик обработки видеопотока и создание окон
+import detected_object
+import features
+
+videoFeatures = features.Features() #инициализация характеристик обработки видеопотока и создание окон
 
 #цикл обработки кадров видеопотока
 while True:
-    success, frame = features.cap.read()
+    success, frame = videoFeatures.cap.read()
     frame = cv.bilateralFilter(frame, 9, 75, 75)
     hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
@@ -26,16 +28,16 @@ while True:
     #получение маски, изолированного объекта и проведение морфологических операций
     mask = cv.inRange(hsv, lower, upper)
     onlyObject = cv.bitwise_and(frame, frame, mask=mask)
-    opening = cv.morphologyEx(mask, cv.MORPH_OPEN, features.kernel)
-    closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, features.kernel)
+    opening = cv.morphologyEx(mask, cv.MORPH_OPEN, videoFeatures.kernel)
+    closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, videoFeatures.kernel)
     #обнаружение объекта, при нахождении в кадре замкнутых контуров
-    detectedObject = features.getContours(onlyObject, thresh1, thresh2, features.kernel, frame, features.depth)
+    detectedObject = videoFeatures.getContours(onlyObject, thresh1, thresh2, videoFeatures.kernel, frame, videoFeatures.depth)
     #отслеживание нажатия клавиши
     if cv.waitKey(1) & 0xFF == ord('q'):
-        if features.countToExit >= features.amount:
+        if videoFeatures.countToExit >= videoFeatures.amount:
             break
         detectedObject.infoAnalysis(lower, upper)
-        features.countToExit += 1
+        videoFeatures.countToExit += 1
     #отображение окон
     cv.imshow("mask", closing)
     cv.imshow("frame", frame)
@@ -48,17 +50,18 @@ with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
     cur = con.cursor()
     cur.execute("""SELECT * FROM objects""")
     allObjects = cur.fetchall()
+    index = detected_object.Indexes()
     #задание параметров hsv для объекта
     for object in allObjects:
-        cv.setTrackbarPos("H", "track", object[6])
-        cv.setTrackbarPos("HL", "track", object[9])
-        cv.setTrackbarPos("S", "track", object[7])
-        cv.setTrackbarPos("SL", "track", object[10])
-        cv.setTrackbarPos("V", "track", object[8])
-        cv.setTrackbarPos("VL", "track", object[11])
+        cv.setTrackbarPos("H", "track", object[index.H])
+        cv.setTrackbarPos("HL", "track", object[index.HL])
+        cv.setTrackbarPos("S", "track", object[index.S])
+        cv.setTrackbarPos("SL", "track", object[index.SL])
+        cv.setTrackbarPos("V", "track", object[index.V])
+        cv.setTrackbarPos("VL", "track", object[index.VL])
         #цикл обработки кадров видеопотока
         while True:
-            success, frame = features.cap.read()
+            success, frame = videoFeatures.cap.read()
             frame = cv.bilateralFilter(frame, 9, 75, 75)
             hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
 
@@ -74,12 +77,13 @@ with sql.connect('D:\pythonProject\TechVision\objects.db') as con:
 
             mask = cv.inRange(hsv, lower, upper)
             onlyObject = cv.bitwise_and(frame, frame, mask=mask)
-            opening = cv.morphologyEx(mask, cv.MORPH_OPEN, features.kernel)
-            closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, features.kernel)
+            opening = cv.morphologyEx(mask, cv.MORPH_OPEN, videoFeatures.kernel)
+            closing = cv.morphologyEx(opening, cv.MORPH_CLOSE, videoFeatures.kernel)
             frame = cv.putText(frame, f"Searching \"{object[0]}\"", (10, 30),
                                cv.FONT_HERSHEY_SIMPLEX, 1.0, (255, 255, 255), 2)
             #распознавание объекта
-            mfs.DetectedObject.recognizeObject(onlyObject, thresh1, thresh2, features.kernel, frame, object, features)
+            detected_object.DetectedObject.recognizeObject(onlyObject, thresh1, thresh2, videoFeatures.kernel,
+                                frame, object, videoFeatures, index)
 
             if cv.waitKey(1) & 0xFF == ord('q'):
                 break
